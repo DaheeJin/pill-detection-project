@@ -56,6 +56,14 @@ pill-detection-project/
 └── ...
 
 ````
+## 실행 코드
+
+!python /content/pill-detection-project/resnet_classifier/inference_resnet.py \
+  --image_dir /content/ai02_project/test_images \  #개인 테스트 이미지 경로로 변경하기
+  --yolo_weights "/content/runs/detect/v8m_class5_70val_r5t0.05v0.1_(1)/weights/best.pt" \  #개인 YOLOv8m 웨이트 저장 경로로 변경하기
+  --resnet_weights /content/pill-detection-project/resnet_classifier/weights/best_resnet.pth \
+  --drug_map_json_root /content/ai02_project/train_annotations_2 \  #개인 트레인 어노테이션 경로로 변경하기
+  --output_csv /content/test_results.csv
 
 ---
 
