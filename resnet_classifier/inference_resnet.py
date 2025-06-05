@@ -48,7 +48,16 @@ def export_detection_classification_csv(image_dir, yolo_model, classifier_model,
             continue
 
         orig_image = cv2.imread(img_path)
-        yolo_result = yolo_model.predict(source=img_path, conf=0.3, verbose=False)
+        yolo_result = yolo_model.predict(
+            source=img_path,
+            conf=0.3,
+            imgsz=512,
+            iou=0.5,
+            agnostic_nms=True,
+            save=False,
+            verbose=False
+        )[0]  # ← 단일 이미지 결과 추출
+
         bboxes = yolo_result[0].boxes.xyxy.cpu().numpy()
 
         for i, box in enumerate(bboxes):
