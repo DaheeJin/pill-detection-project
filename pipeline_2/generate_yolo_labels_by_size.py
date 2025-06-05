@@ -8,7 +8,7 @@ from collections import defaultdict
 
 # 설정
 json_root = "/content/train_annotations_2/annotations_add_넥시움정" # JSON 파일이 있는 폴더 경로
-output_dir = "/content/yolo_labels/train"
+output_dir = "/content/ai02_project/yolo_labels/train"
 os.makedirs(output_dir, exist_ok=True)
 
 # Step 1: class_id → 면적 계산
