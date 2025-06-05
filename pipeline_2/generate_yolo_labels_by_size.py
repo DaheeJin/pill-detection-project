@@ -66,14 +66,13 @@ for image_filename, json_list in tqdm(image_to_jsons.items(), desc="YOLO TXT 생
 
             image_info = data.get("images", [])[0]
             img_w, img_h = image_info["width"], image_info["height"]
-            category_info = data.get("categories", [])[0]
-            original_class_id = category_info["id"]
-
-            if original_class_id not in class_size_map:
-                continue
-            size_class_id = class_size_map[original_class_id]
 
             for ann in data.get("annotations", []):
+                category_id = str(ann["category_id"])
+                if category_id not in class_size_map:
+                    continue
+                size_class_id = class_size_map[category_id]
+
                 x, y, w, h = ann["bbox"]
                 x_center = (x + w / 2) / img_w
                 y_center = (y + h / 2) / img_h
@@ -84,6 +83,7 @@ for image_filename, json_list in tqdm(image_to_jsons.items(), desc="YOLO TXT 생
         except Exception as e:
             print(f"오류 in {json_path}: {e}")
             continue
+
 
     if lines:
         txt_path = os.path.join(output_dir, f"{stem}.txt")
