@@ -8,7 +8,7 @@ from ultralytics import YOLO
 model = YOLO("yolov8m.pt")
 
 model.train(
-    data="/content/ai02_project/yolo_data/data.yaml",
+    data="/content/ai02_project/yolo_data/data.yaml", #pipeline_2_dataset_split/split_by_camera_angle.py에서 만든 yaml
     epochs=20,
     imgsz=512,
     batch=16,
