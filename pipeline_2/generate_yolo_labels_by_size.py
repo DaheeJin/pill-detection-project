@@ -15,21 +15,24 @@ os.makedirs(output_dir, exist_ok=True)
 class_area_map = {}
 json_paths = glob(os.path.join(json_root, "**", "*.json"), recursive=True)
 
+# 클래스별 최대 면적 기준으로 계산
 for json_path in tqdm(json_paths, desc="면적 수집"):
     try:
         with open(json_path, "r") as f:
             data = json.load(f)
-        image_info = data.get("images", [])[0]
-        category_info = data.get("categories", [])[0]
-        class_id = category_info["id"]
 
-        if class_id not in class_area_map:
-            long_len = image_info.get("leng_long", 0)
-            short_len = image_info.get("leng_short", 0)
-            area = long_len * short_len
-            class_area_map[class_id] = area
-    except:
+        image_info = data.get("images", [])[0]
+        anns = data.get("annotations", [])
+        for ann in anns:
+            category_id = str(ann["category_id"])  # 문자열일 수 있음
+            area = ann["area"]
+            if category_id not in class_area_map or area > class_area_map[category_id]:
+                class_area_map[category_id] = area
+
+    except Exception as e:
+        print(f"오류 in {json_path}: {e}")
         continue
+
 
 # Step 2: 분위수 기반 size class ID 생성
 areas = list(class_area_map.values())
