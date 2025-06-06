@@ -33,6 +33,16 @@ def build_drug_map(json_root):
             print(f"⚠️ 오류 발생: {json_path} → {e}")
     return drug_map
 
+def build_drug_map_from_csv(csv_path):
+    df = pd.read_csv(csv_path)
+    drug_map = {}
+    for _, row in df.iterrows():
+        drug_N = row['drug_N']
+        category_id = row['category_id']
+        category_name = row['category_name']
+        drug_map[drug_N] = (category_id, category_name)
+    return drug_map
+
 def export_detection_classification_csv(image_dir, yolo_model, classifier_model, transform, device, class_names, drug_map, save_csv_path="results.csv"):
     image_paths = sorted(glob(os.path.join(image_dir, "*.png")))
     results = []
@@ -98,7 +108,8 @@ if __name__ == "__main__":
     parser.add_argument("--image_dir", required=True)
     parser.add_argument("--yolo_weights", required=True)
     parser.add_argument("--resnet_weights", required=True)
-    parser.add_argument("--drug_map_json_root", required=True)
+    parser.add_argument("--drug_map_json_root", type=str, default=None)
+    parser.add_argument("--drug_map_csv", type=str, default=None)
     parser.add_argument("--output_csv", default="results.csv")
     parser.add_argument("--device", default="cuda")
     args = parser.parse_args()
@@ -127,7 +138,13 @@ if __name__ == "__main__":
     ])
 
     # drug_map
-    drug_map = build_drug_map(args.drug_map_json_root)
+    if args.drug_map_csv:
+        drug_map = build_drug_map_from_csv(args.drug_map_csv)
+    elif args.drug_map_json_root:
+        drug_map = build_drug_map(args.drug_map_json_root)
+    else:
+        raise ValueError("CSV 또는 JSON drug map 경로 중 하나는 반드시 지정해야 합니다.")
+
 
     # 실행
     export_detection_classification_csv(
