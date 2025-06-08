@@ -55,7 +55,9 @@ def export_detection_classification_csv(image_dir, yolo_model, classifier_model,
                 probs = torch.softmax(output, dim=1)
                 conf, pred_idx = torch.max(probs, dim=1)
 
-            category_id = int(pred_idx.item())
+            # class_id (0~72) → category_id (고유값)
+            category_id = class_to_category[class_id]
+
 
             results.append({
                 "annotation_id": ann_id,
