@@ -1,6 +1,5 @@
 import os
 import cv2
-import json
 import argparse
 import torch
 import pandas as pd
@@ -11,39 +10,7 @@ from torchvision import transforms
 from ultralytics import YOLO
 from torchvision import models
 
-def build_drug_map(json_root):
-    drug_map = {}
-    json_paths = glob(os.path.join(json_root, "**", "*.json"), recursive=True)
-
-    for json_path in json_paths:
-        try:
-            with open(json_path, 'r') as f:
-                data = json.load(f)
-
-            images = data.get("images", [])
-            categories = data.get("categories", [])
-            if images and categories:
-                drug_N = images[0].get("drug_N")
-                category_id = categories[0].get("id")
-                category_name = categories[0].get("name")
-
-                if drug_N and category_id:
-                    drug_map[drug_N] = (category_id, category_name)
-        except Exception as e:
-            print(f"⚠️ 오류 발생: {json_path} → {e}")
-    return drug_map
-
-def build_drug_map_from_csv(csv_path):
-    df = pd.read_csv(csv_path)
-    drug_map = {}
-    for _, row in df.iterrows():
-        drug_N = row['drug_N']
-        category_id = row['category_id']
-        category_name = row['category_name']
-        drug_map[drug_N] = (category_id, category_name)
-    return drug_map
-
-def export_detection_classification_csv(image_dir, yolo_model, classifier_model, transform, device, class_names, drug_map, save_csv_path="results.csv"):
+def export_detection_classification_csv(image_dir, yolo_model, classifier_model, transform, device, save_csv_path="results.csv"):
     image_paths = sorted(glob(os.path.join(image_dir, "*.png")))
     results = []
     ann_id = 1
@@ -58,6 +25,10 @@ def export_detection_classification_csv(image_dir, yolo_model, classifier_model,
             continue
 
         orig_image = cv2.imread(img_path)
+        if orig_image is None:
+            print(f"❌ 이미지 로딩 실패: {img_path}")
+            continue
+
         yolo_result = yolo_model.predict(
             source=img_path,
             conf=0.3,
@@ -66,7 +37,7 @@ def export_detection_classification_csv(image_dir, yolo_model, classifier_model,
             agnostic_nms=True,
             save=False,
             verbose=False
-        )[0]  # ← 단일 이미지 결과 추출
+        )[0]
 
         bboxes = yolo_result[0].boxes.xyxy.cpu().numpy()
 
@@ -84,8 +55,7 @@ def export_detection_classification_csv(image_dir, yolo_model, classifier_model,
                 probs = torch.softmax(output, dim=1)
                 conf, pred_idx = torch.max(probs, dim=1)
 
-            pred_class = class_names[pred_idx.item()]
-            category_id = drug_map.get(pred_class, [None])[0]
+            category_id = int(pred_idx.item())
 
             results.append({
                 "annotation_id": ann_id,
@@ -105,18 +75,16 @@ def export_detection_classification_csv(image_dir, yolo_model, classifier_model,
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--image_dir", required=True)
-    parser.add_argument("--yolo_weights", required=True)
-    parser.add_argument("--resnet_weights", required=True)
-    parser.add_argument("--drug_map_json_root", type=str, default=None)
-    parser.add_argument("--drug_map_csv", type=str, default=None)
-    parser.add_argument("--output_csv", default="results.csv")
-    parser.add_argument("--device", default="cuda")
+    parser.add_argument("--image_dir", required=True, help="YOLO 추론용 이미지 경로")
+    parser.add_argument("--yolo_weights", required=True, help="YOLO 모델 가중치 경로")
+    parser.add_argument("--resnet_weights", required=True, help="ResNet 분류 모델 가중치 경로")
+    parser.add_argument("--output_csv", default="results.csv", help="결과 저장 CSV 경로")
+    parser.add_argument("--device", default="cuda", help="cuda 또는 cpu")
     args = parser.parse_args()
 
     device = torch.device(args.device)
 
-    # 모델 불러오기
+    # 모델 로드
     yolo_model = YOLO(args.yolo_weights)
 
     classifier_model = models.resnet18(weights=None)
@@ -125,26 +93,13 @@ if __name__ == "__main__":
     classifier_model.to(device)
     classifier_model.eval()
 
-    # 클래스 이름 목록
-    class_names = sorted(os.listdir("/content/cropped_pills"))
-
-
-    # Transform
+    # 이미지 전처리
     transform = transforms.Compose([
         transforms.Resize((224,224)),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406],
                              std=[0.229, 0.224, 0.225])
     ])
-
-    # drug_map
-    if args.drug_map_csv:
-        drug_map = build_drug_map_from_csv(args.drug_map_csv)
-    elif args.drug_map_json_root:
-        drug_map = build_drug_map(args.drug_map_json_root)
-    else:
-        raise ValueError("CSV 또는 JSON drug map 경로 중 하나는 반드시 지정해야 합니다.")
-
 
     # 실행
     export_detection_classification_csv(
@@ -153,7 +108,5 @@ if __name__ == "__main__":
         classifier_model=classifier_model,
         transform=transform,
         device=device,
-        class_names=class_names,
-        drug_map=drug_map,
         save_csv_path=args.output_csv
     )
